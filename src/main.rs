@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Player {
     X,
     O,
@@ -18,6 +18,9 @@ enum MiniBoardState {
     Claimed(Player),
     Drawn,
 }
+
+#[derive(Component)]
+struct BigBoard;
 
 fn main() {
     App::new()
@@ -38,7 +41,8 @@ fn main() {
                 update_board,
                 check_miniboards,
                 update_miniboards,
-            ),
+                check_big_board,
+            ).chain(),
         )
         .run();
 }
@@ -47,7 +51,7 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 
     commands
-        .spawn(NodeBundle {
+        .spawn((NodeBundle {
             style: Style {
                 display: Display::Grid,
                 width: Val::Percent(100.0),
@@ -58,7 +62,7 @@ fn setup(mut commands: Commands) {
             },
             background_color: BackgroundColor(Color::WHITE),
             ..Default::default()
-        })
+        }, BigBoard))
         .with_children(|parent| {
             for _ in 0..9 {
                 parent
@@ -262,6 +266,78 @@ fn update_miniboards(
                 *state = MiniBoardState::Unclaimed;
             }
             _ => {}
+        }
+    }
+}
+
+fn check_big_board(
+    mut commands: Commands,
+    updated_query: Query<(), Changed<MiniBoardState>>,
+    miniboard_query: Query<&MiniBoardState>,
+    mut bigboard_query: Query<(Entity, &Children, &mut BackgroundColor), With<BigBoard>>,
+) {
+    if updated_query.is_empty() {
+        return;
+    }
+
+    let (bigboard_entity, children, mut color) = bigboard_query.single_mut();
+
+    let states = miniboard_query
+        .iter_many(children)
+        .map(|state| match *state {
+            MiniBoardState::Claimed(owner) => Some(owner),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    if let Some(winner) = find_winner(&states) {
+        let mut bigboard = commands.entity(bigboard_entity);
+
+        match winner {
+            Player::X => {
+                bigboard.despawn_descendants().with_children(|parent| {
+                    parent.spawn(
+                        TextBundle::from_section(
+                            "X",
+                            TextStyle {
+                                font_size: 240.0,
+                                color: Color::BLACK,
+                                ..Default::default()
+                            },
+                        )
+                        .with_style(Style {
+                            grid_column: GridPlacement::span(3),
+                            grid_row: GridPlacement::span(3),
+                            align_self: AlignSelf::Center,
+                            justify_self: JustifySelf::Center,
+                            ..Default::default()
+                        }),
+                    );
+                });
+                color.0 = Color::hex("#ef8f8f").unwrap();
+            }
+            Player::O => {
+                bigboard.despawn_descendants().with_children(|parent| {
+                    parent.spawn(
+                        TextBundle::from_section(
+                            "O",
+                            TextStyle {
+                                font_size: 240.0,
+                                color: Color::BLACK,
+                                ..Default::default()
+                            },
+                        )
+                        .with_style(Style {
+                            grid_column: GridPlacement::span(3),
+                            grid_row: GridPlacement::span(3),
+                            align_self: AlignSelf::Center,
+                            justify_self: JustifySelf::Center,
+                            ..Default::default()
+                        }),
+                    );
+                });
+                color.0 = Color::hex("#8fefef").unwrap();
+            }
         }
     }
 }
