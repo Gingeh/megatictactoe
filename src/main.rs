@@ -192,7 +192,7 @@ fn check_miniboards(
             .collect::<Vec<_>>();
 
         let Some(winner) = find_winner(&cell_states) else {
-            if cell_states.iter().flatten().count() == 9 {
+            if cell_states.iter().all(Option::is_some) {
                 *miniboard_state = MiniBoardState::Drawn;
             }
             continue;
@@ -281,6 +281,7 @@ fn check_big_board(
     }
 
     let (bigboard_entity, children, mut color) = bigboard_query.single_mut();
+    let mut bigboard = commands.entity(bigboard_entity);
 
     let states = miniboard_query
         .iter_many(children)
@@ -291,7 +292,6 @@ fn check_big_board(
         .collect::<Vec<_>>();
 
     if let Some(winner) = find_winner(&states) {
-        let mut bigboard = commands.entity(bigboard_entity);
 
         match winner {
             Player::X => {
@@ -339,5 +339,28 @@ fn check_big_board(
                 color.0 = Color::hex("#8fefef").unwrap();
             }
         }
+    }
+
+    if states.iter().all(Option::is_some) {
+        bigboard.despawn_descendants().with_children(|parent| {
+                    parent.spawn(
+                        TextBundle::from_section(
+                            "Draw :(",
+                            TextStyle {
+                                font_size: 240.0,
+                                color: Color::BLACK,
+                                ..Default::default()
+                            },
+                        )
+                        .with_style(Style {
+                            grid_column: GridPlacement::span(3),
+                            grid_row: GridPlacement::span(3),
+                            align_self: AlignSelf::Center,
+                            justify_self: JustifySelf::Center,
+                            ..Default::default()
+                        }),
+                    );
+                });
+                color.0 = Color::hex("#8f8f8f").unwrap();
     }
 }
