@@ -4,6 +4,7 @@ use bevy::prelude::*;
 enum Player {
     X,
     O,
+    A,
 }
 
 #[derive(Resource)]
@@ -121,7 +122,8 @@ fn handle_click(
         cell_state.0 = Some(current_turn.0);
         current_turn.0 = match current_turn.0 {
             Player::X => Player::O,
-            Player::O => Player::X,
+            Player::O => Player::A,
+            Player::A => Player::X,
         };
     }
 }
@@ -140,6 +142,10 @@ fn update_board(
             Some(Player::O) => {
                 text.sections[0].value = "O".to_string();
                 background_color.0 = Color::hex("#8fefef").unwrap();
+            }
+            Some(Player::A) => {
+                text.sections[0].value = "A".to_string();
+                background_color.0 = Color::hex("#efd97f").unwrap();
             }
             None => {
                 text.sections[0].value = String::new();
@@ -253,6 +259,28 @@ fn update_miniboards(
                     );
                 });
                 color.0 = Color::hex("#8fefef").unwrap();
+            }
+            MiniBoardState::Claimed(Player::A) => {
+                miniboard.despawn_descendants().with_children(|parent| {
+                    parent.spawn(
+                        TextBundle::from_section(
+                            "A",
+                            TextStyle {
+                                font_size: 240.0,
+                                color: Color::BLACK,
+                                ..Default::default()
+                            },
+                        )
+                        .with_style(Style {
+                            grid_column: GridPlacement::span(3),
+                            grid_row: GridPlacement::span(3),
+                            align_self: AlignSelf::Center,
+                            justify_self: JustifySelf::Center,
+                            ..Default::default()
+                        }),
+                    );
+                });
+                color.0 = Color::hex("#efd97f").unwrap();
             }
             MiniBoardState::Drawn => {
                 let mut cell_states = cells_query.iter_many_mut(children);
